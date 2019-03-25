@@ -1,7 +1,5 @@
 package com.kv.callrecorder;
 
-import android.app.Notification;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -10,34 +8,39 @@ import android.telephony.TelephonyManager;
 import static com.kv.callrecorder.Utility.Utils.log;
 
 public class CallReceiver extends BroadcastReceiver {
+    static boolean incoming_flag;
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
-        String status = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+        String event = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
 
-        if (status.equals(TelephonyManager.EXTRA_STATE_OFFHOOK)) {
+        if (event.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
+            incoming_flag = true;
+        } else if (event.equals(TelephonyManager.EXTRA_STATE_OFFHOOK)) {
             startService(context, incomingNumber);
-        } else if (status.equals(TelephonyManager.EXTRA_STATE_IDLE)) {
+        } else if (event.equals(TelephonyManager.EXTRA_STATE_IDLE)) {
+            incoming_flag = false;
             stopService(context);
         }
     }
 
-    private void stopService(Context context) {
-
-        Intent i = new Intent(context, RecorderService.class);
-        context.stopService(i);
-
-    }
-
     private void startService(Context context, String incomingNumber) {
-        Intent i = new Intent(context, RecorderService.class);
+        Intent i = new Intent(context, MediaRecorderService.class);
+//        Intent i = new Intent(context, AudioRecorderService.class);
         i.putExtra("incoming_number", incomingNumber);
+        i.putExtra("incoming_flag", incoming_flag);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             context.startForegroundService(i);
         } else {
             context.startService(i);
         }
+    }
+
+    private void stopService(Context context) {
+        Intent i = new Intent(context, MediaRecorderService.class);
+//        Intent i = new Intent(context, AudioRecorderService.class);
+        context.stopService(i);
     }
 }
