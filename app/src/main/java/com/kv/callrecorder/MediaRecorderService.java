@@ -67,7 +67,7 @@ public class MediaRecorderService extends Service {
     private void notificationBuilder() {
         if (Build.VERSION.SDK_INT >= 26) {
             String CHANNEL_ID = "my_channel_01";
-            @SuppressLint("WrongConstant")
+
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Channel title",
                     NotificationManager.IMPORTANCE_DEFAULT);
 
@@ -99,8 +99,11 @@ public class MediaRecorderService extends Service {
             recorder.release();
             recorder = null;
 
-            notificationManager.cancel(1);
-            stopForeground(true);
+            if (Build.VERSION.SDK_INT >= 26) {
+                stopForeground(true);
+            }else {
+                notificationManager.cancel(1);
+            }
         }
     }
 

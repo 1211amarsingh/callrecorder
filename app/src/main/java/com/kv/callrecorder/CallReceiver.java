@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.telephony.TelephonyManager;
 
+import com.kv.callrecorder.Utility.Utils;
+
 import static com.kv.callrecorder.Utility.Utils.log;
 
 public class CallReceiver extends BroadcastReceiver {
@@ -14,14 +16,18 @@ public class CallReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         String incomingNumber = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
         String event = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
-
-        if (event.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
-            incoming_flag = true;
-        } else if (event.equals(TelephonyManager.EXTRA_STATE_OFFHOOK)) {
-            startService(context, incomingNumber);
-        } else if (event.equals(TelephonyManager.EXTRA_STATE_IDLE)) {
-            incoming_flag = false;
-            stopService(context);
+        String permissionstatus = Utils.getPreferences(context, "permission");
+        if (permissionstatus.equals("1")) {
+            if (event.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
+                incoming_flag = true;
+            } else if (event.equals(TelephonyManager.EXTRA_STATE_OFFHOOK)) {
+                startService(context, incomingNumber);
+            } else if (event.equals(TelephonyManager.EXTRA_STATE_IDLE)) {
+                incoming_flag = false;
+                stopService(context);
+            }
+        }else {
+            log("Permission Missing");
         }
     }
 

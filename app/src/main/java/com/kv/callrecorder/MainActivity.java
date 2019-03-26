@@ -25,10 +25,13 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 
+import com.kv.callrecorder.Utility.Utils;
+
 import java.io.File;
 import java.io.IOException;
 
 import static com.kv.callrecorder.Utility.Utils.hasPermissions;
+import static com.kv.callrecorder.Utility.Utils.log;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -80,8 +83,10 @@ public class MainActivity extends AppCompatActivity {
         player.release();
         player = null;
     }
+
     /**
      * check permission is granted or not
+     *
      * @return
      */
     public boolean check_Permission() {
@@ -97,6 +102,16 @@ public class MainActivity extends AppCompatActivity {
         } else {
             return true;
         }
+    }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        int permission = 1;
+        for (int status : grantResults) {
+            if (status == -1) {
+                permission = 0;
+            }
+        }
+        Utils.setPreferences(this, "permission", String.valueOf(permission));
     }
 }
