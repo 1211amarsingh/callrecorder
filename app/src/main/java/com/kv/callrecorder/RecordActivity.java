@@ -2,91 +2,84 @@ package com.kv.callrecorder;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
-import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.LinearLayout;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 
 import com.kv.callrecorder.Utility.Utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
 import static com.kv.callrecorder.Utility.Utils.hasPermissions;
 import static com.kv.callrecorder.Utility.Utils.log;
 
-public class MainActivity extends AppCompatActivity {
+public class RecordActivity extends AppCompatActivity {
 
     Activity activity;
 
-    private static String fileName = null;
-    private MediaRecorder recorder = null;
-    private MediaPlayer player = null;
+    @BindView(R.id.recycler_view)
+    RecyclerView recyclerView;
+    ArrayList<AudioModel> audiolist = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.bind(this);
         setBodyUI();
     }
 
     private void setBodyUI() {
         activity = this;
-
         check_Permission();
+
+        setRecyclerView();
     }
 
-    @Override
-    public void onStop() {
-        super.onStop();
-        if (recorder != null) {
-            recorder.release();
-            recorder = null;
-        }
+    private void setRecyclerView() {
+        recyclerView.setHasFixedSize(true);
+        recyclerView.setLayoutManager(new LinearLayoutManager(activity));
 
-        if (player != null) {
-            player.release();
-            player = null;
-        }
+        getRecordedFiles();
+        RecordAdapter recordAdapter = new RecordAdapter(activity, audiolist);
+        recyclerView.setAdapter(recordAdapter);
     }
 
-    private void startPlaying() {
-        player = new MediaPlayer();
-        try {
-            player.setDataSource(fileName);
-            player.prepare();
-            player.start();
-        } catch (IOException ignored) {
+    private void getRecordedFiles() {
+        String path = Environment.getExternalStorageDirectory().toString() + "/Call Recorder";
 
+        File folder = new File(path);
+        File[] listOfDirs = folder.listFiles();
+
+        for (File listOfDir : listOfDirs) {
+            if (listOfDir.isDirectory()) {
+                File folder2 = new File(path + '/' + listOfDir.getName());
+                File[] listOfFile = folder2.listFiles();
+                for (File audio : listOfFile) {
+                    if (!audio.getName().equals(".nomedia")) {
+                        AudioModel audioModel = new AudioModel();
+                        audioModel.setName(audio.getName());
+                        audioModel.setPath(audio.getAbsolutePath());
+                        audiolist.add(audioModel);
+                    }
+                }
+            }
         }
-    }
-
-    private void stopPlaying() {
-        player.release();
-        player = null;
     }
 
     /**
      * check permission is granted or not
-     *
      * @return
      */
     public boolean check_Permission() {
