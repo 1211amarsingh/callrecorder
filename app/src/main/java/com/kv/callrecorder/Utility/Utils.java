@@ -18,7 +18,11 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -53,6 +57,27 @@ public class Utils {
     public static void log(String message) {
         String Tag = "Util";
         Log.w(Tag, message);
+//        createLogFile(message);
+    }
+
+    private static void createLogFile(String message) {
+        String time = new SimpleDateFormat("yyyy-MM-dd hhmmss").format(new Date()) + " ";
+        String path = Environment.getExternalStorageDirectory().getPath() + "/Call Recorder/";
+        File file = new File(path);
+        if (!file.exists()) {
+            file.mkdirs();
+        }
+        try {
+            FileOutputStream fos = new FileOutputStream(path + "/Log.txt", true);
+            fos.write(time.getBytes());
+            fos.write(message.getBytes());
+            fos.write("\n".getBytes());
+            fos.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static boolean isGpsOn(Context context) {
@@ -79,8 +104,8 @@ public class Utils {
 //    public static boolean isNetworkAvailable(Context context) {
 //        ConnectivityManager connectivityManager
 //                = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        //NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        //return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    //NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+    //return activeNetworkInfo != null && activeNetworkInfo.isConnected();
 //    }
 
     public static void setPreferences(Context con, String key, String value) {
@@ -194,6 +219,11 @@ public class Utils {
     public static void showKeyboard(Activity activity) {
         InputMethodManager imm = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+    }
+
+    public static boolean deleteFileProject(String filepath) {
+        File file = new File(filepath);
+        return file.exists() && file.delete();
     }
 
 }

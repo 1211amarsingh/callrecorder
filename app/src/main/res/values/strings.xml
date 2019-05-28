@@ -1,6 +1,4 @@
 <resources>
-    <string name="app_name">CallRecorder</string>
-    <string name="ticker_text">ticker_text</string>
-    <string name="notification_title">notification_title</string>
-    <string name="notification_message">notification_message</string>
+    <string name="app_name">Call Recorder</string>
+    <string name="zero">0:00</string>
 </resources>

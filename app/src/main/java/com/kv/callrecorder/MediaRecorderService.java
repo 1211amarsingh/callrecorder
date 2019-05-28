@@ -22,12 +22,13 @@ import java.util.Date;
 
 import static com.kv.callrecorder.Utility.Utils.log;
 
+
 public class MediaRecorderService extends Service {
 
     private MediaRecorder recorder;
     private String number = "temp";
     NotificationManagerCompat notificationManager;
-    private boolean status;
+    private static boolean status;
     private boolean incoming_flag;
 
     @Override
@@ -50,17 +51,18 @@ public class MediaRecorderService extends Service {
         recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         recorder.setOutputFormat(MediaRecorder.OutputFormat.AMR_NB);
         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-        log("Start " + getFilename());
         recorder.setOutputFile(getFilename());
         recorder.setOrientationHint(Surface.ROTATION_0);
+        log("Start " + getFilename());
 
         try {
+
             recorder.prepare();
             recorder.start();
             notificationBuilder();
             status = true;
         } catch (Exception e) {
-            e.printStackTrace();
+            log(e + "");
         }
     }
 
@@ -91,17 +93,19 @@ public class MediaRecorderService extends Service {
     }
 
     private void stopRecording() {
-        log("Stop " + status);
-
         if (status) {
-            recorder.stop();
+            try {
+                recorder.stop();
+            } catch (Exception e) {
+                log(e + "");
+            }
             recorder.reset();
             recorder.release();
             recorder = null;
 
             if (Build.VERSION.SDK_INT >= 26) {
                 stopForeground(true);
-            }else {
+            } else {
                 notificationManager.cancel(1);
             }
         }
@@ -129,11 +133,11 @@ public class MediaRecorderService extends Service {
             state = "IN_";
         }
         String time = new SimpleDateFormat("hhmmss").format(new Date());
-        return (file.getAbsolutePath() + "/CALL_"+state + number + "_" + time + ".amr");
+        return (file.getAbsolutePath() + "/CALL_" + state + number + "_" + time + ".amr");
     }
 
     private void createNomedia(String absolutePath) {
-        File file = new File(absolutePath+"/"+".nomedia");
+        File file = new File(absolutePath + "/" + ".nomedia");
         try {
             file.createNewFile();
         } catch (IOException e) {

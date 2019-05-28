@@ -3,21 +3,23 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.kv.callrecorder">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
-
-        <activity android:name=".RecordActivity">
+        <activity
+            android:name=".RecordListActivity"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -38,11 +40,16 @@
             android:name=".MediaRecorderService"
             android:enabled="true"
             android:exported="true" />
-        <service
-            android:name=".AudioRecorderService"
-            android:enabled="true"
-            android:exported="true" />
 
+        <meta-data
+            android:name="io.fabric.ApiKey"
+            android:value="2944b4c7d4c11d8f9bad64de95d00ffecb271de0" />
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="@string/app_id" />
+        <meta-data
+            android:name="com.google.android.gms.ads.AD_MANAGER_APP"
+            android:value="true" />
     </application>
 
 </manifest>
