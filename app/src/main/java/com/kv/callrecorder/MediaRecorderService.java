@@ -1,6 +1,5 @@
 package com.kv.callrecorder;
 
-import android.annotation.SuppressLint;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -26,10 +25,9 @@ import static com.kv.callrecorder.Utility.Utils.log;
 public class MediaRecorderService extends Service {
 
     private MediaRecorder recorder;
-    private String number = "temp";
     NotificationManagerCompat notificationManager;
-    private static boolean status;
     private boolean incoming_flag;
+    private String number;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -38,12 +36,13 @@ public class MediaRecorderService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        String tempnum = intent.getStringExtra("incoming_number");
-        incoming_flag = intent.getBooleanExtra("incoming_flag", false);
-        number = tempnum != null ? tempnum : number;
+        if (intent != null) {
+            number = intent.getStringExtra("incoming_number");
+            incoming_flag = intent.getBooleanExtra("incoming_flag", false);
 
-        startRecording();
-        return super.onStartCommand(intent, flags, startId);
+            startRecording();
+        }
+        return START_STICKY;
     }
 
     private void startRecording() {
@@ -54,15 +53,13 @@ public class MediaRecorderService extends Service {
         recorder.setOutputFile(getFilename());
         recorder.setOrientationHint(Surface.ROTATION_0);
         log("Start " + getFilename());
-
         try {
 
             recorder.prepare();
             recorder.start();
             notificationBuilder();
-            status = true;
         } catch (Exception e) {
-            log(e + "");
+            e.printStackTrace();
         }
     }
 
@@ -93,21 +90,21 @@ public class MediaRecorderService extends Service {
     }
 
     private void stopRecording() {
-        if (status) {
+        if (recorder != null) {
             try {
                 recorder.stop();
             } catch (Exception e) {
-                log(e + "");
+                e.printStackTrace();
             }
             recorder.reset();
             recorder.release();
             recorder = null;
-
-            if (Build.VERSION.SDK_INT >= 26) {
-                stopForeground(true);
-            } else {
-                notificationManager.cancel(1);
-            }
+        }
+        if (Build.VERSION.SDK_INT >= 26) {
+            stopForeground(true);
+        } else {
+            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.cancel(1);
         }
     }
 

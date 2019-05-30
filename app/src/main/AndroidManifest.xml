@@ -8,7 +8,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
@@ -28,7 +27,7 @@
         </activity>
 
         <receiver
-            android:name=".CallReceiver"
+            android:name=".PhoneStateListener"
             android:enabled="true"
             android:exported="true">
             <intent-filter>

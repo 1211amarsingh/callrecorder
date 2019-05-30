@@ -1,31 +1,37 @@
 package com.kv.callrecorder;
 
+import android.Manifest;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.graphics.drawable.Drawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomSheetBehavior;
-import android.support.design.widget.Snackbar;
-import android.support.v4.content.ContextCompat;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatImageButton;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
-import android.util.Log;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyManager;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -38,15 +44,19 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.InterstitialAd;
 import com.google.android.gms.ads.MobileAds;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.kv.callrecorder.Utility.Utilities;
-import com.kv.callrecorder.Utility.Utils;
 import com.kv.callrecorder.Utility.visualizer.LineBarVisualizer;
 
 import java.io.File;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -54,10 +64,11 @@ import butterknife.OnClick;
 import io.fabric.sdk.android.Fabric;
 
 import static com.kv.callrecorder.Utility.PermissionHandling.checkRequiredPermissions;
-import static com.kv.callrecorder.Utility.Utils.deleteFileProject;
+import static com.kv.callrecorder.Utility.PermissionHandling.displayNeverAskAgainDialog;
+import static com.kv.callrecorder.Utility.Utils.isFileDeleted;
 import static com.kv.callrecorder.Utility.Utils.showToast;
 
-public class RecordListActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener, MediaPlayer.OnCompletionListener {
+public class RecordListActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener, MediaPlayer.OnCompletionListener, SwipeRefreshLayout.OnRefreshListener {
 
     @BindView(R.id.recycler_view)
     RecyclerView recyclerView;
@@ -83,17 +94,27 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
     RelativeLayout rlBottomsheet;
     @BindView(R.id.tv_dir)
     TextView tvDir;
-
-    AppCompatActivity activity;
-    ArrayList<AudioModel> audiolist = new ArrayList<>();
     @BindView(R.id.btnPlayTop)
     AppCompatImageButton btnPlayTop;
     @BindView(R.id.iv_call_type)
     ImageView ivCallType;
+    @BindView(R.id.iv_back)
+    ImageView ivBack;
+    @BindView(R.id.iv_delete)
+    ImageView ivDelete;
+    @BindView(R.id.tv_count)
+    TextView tvCount;
+    @BindView(R.id.sheet_header)
+    RelativeLayout sheetHeader;
+    @BindView(R.id.swipeToRefresh)
+    SwipeRefreshLayout swipeToRefresh;
+
     private RecordListAdapter recordAdapter;
     SimpleDateFormat firstformat = new SimpleDateFormat("yyyy-MM-dd");
     SimpleDateFormat newformat = new SimpleDateFormat("dd-MM-yyyy");
-
+    AppCompatActivity activity;
+    ArrayList<AudioModel> audiolist = new ArrayList<>();
+    ArrayList<String> dummylist;
     MediaPlayer mediaPlayer;
     private String path;
     private Handler mHandler = new Handler();
@@ -102,6 +123,8 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
     private boolean notifyOnResume, seekTrackTouch;
     private BottomSheetBehavior bottomSheetBehavior;
     private Paint p = new Paint();
+    private boolean longclicked;
+    private Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,8 +138,31 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
 
     private void setBodyUI() {
         activity = this;
-
+        newInstall();
         refreshRecyclerView();
+    }
+
+    private void newInstall() {
+        try {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                return;
+            }
+
+            DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference().child("users");
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                List<SubscriptionInfo> subscription = SubscriptionManager.from(getApplicationContext()).getActiveSubscriptionInfoList();
+                for (SubscriptionInfo sbInfo : subscription) {
+                    databaseReference.child(sbInfo.getNumber()).setValue(getDateTime());
+                }
+            } else {
+                TelephonyManager tMgr = (TelephonyManager) activity.getSystemService(Context.TELEPHONY_SERVICE);
+                String mPhoneNumber = tMgr.getLine1Number();
+                databaseReference.child(mPhoneNumber).setValue(getDateTime());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void setBottomSheet() {
@@ -173,13 +219,16 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
     }
 
     private void refreshRecyclerView() {
-        btn_allowPermission.setVisibility(View.GONE);
-        tv_nodata.setVisibility(View.GONE);
-
         if (checkRequiredPermissions(activity)) {
+            btn_allowPermission.setVisibility(View.GONE);
+
             getRecordedFiles();
+
             notifyOnResume = true;
+
             if (audiolist.size() > 0) {
+                tv_nodata.setVisibility(View.GONE);
+
                 if (recordAdapter == null) {
                     recordAdapter = new RecordListAdapter(activity, audiolist);
                     recyclerView.setHasFixedSize(true);
@@ -190,7 +239,8 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
                     //        viewAdsInterstitial();
                     itemClickHandle();
                     setBottomSheet();
-
+                    swipeToRefresh.setColorSchemeResources(R.color.colorAccent);
+                    swipeToRefresh.setOnRefreshListener(this);
                 } else {
                     recordAdapter.notifyDataSetChanged();
                 }
@@ -206,48 +256,28 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
         ItemTouchHelper.SimpleCallback simpleItemTouchCallback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
 
             @Override
-            public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
                 return false;
             }
 
             @Override
             public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
-                final int position = viewHolder.getAdapterPosition();
+                TextView tv_number = viewHolder.itemView.findViewById(R.id.tv_number);
 
-                if (direction == ItemTouchHelper.LEFT) { //delete
-                    recordAdapter.removeItem(position);
+                if (direction == ItemTouchHelper.LEFT) { //message
+                    Intent sms_intent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:" + tv_number.getText().toString()));
+                    sms_intent.putExtra("sms_body", "");
 
-                    View parentLayout = findViewById(android.R.id.content);
-                    Snackbar.make(parentLayout, "Recording Deleted", Snackbar.LENGTH_LONG).addCallback(new Snackbar.Callback() {
-                        @Override
-                        public void onShown(Snackbar sb) {
-                        }
-
-                        @Override
-                        public void onDismissed(Snackbar transientBottomBar, int event) {
-                            switch (event) {
-                                case Snackbar.Callback.DISMISS_EVENT_ACTION:
-                                    recordAdapter.restoreItem(position, audiolist.get(position));
-                                    break;
-                                case Snackbar.Callback.DISMISS_EVENT_TIMEOUT:
-                                    deleteFileProject(audiolist.get(position).getPath());
-                                    audiolist.remove(position);
-                                    break;
-                            }
-                        }
-                    }).setAction("Undo", new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-
-                        }
-                    }).show();
+                    if (sms_intent.resolveActivity(getPackageManager()) != null) {
+                        startActivity(sms_intent);
+                    }
                 } else {
-                    recordAdapter.notifyItemChanged(position);
+                    startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + tv_number.getText().toString())));
                 }
             }
 
             @Override
-            public void onChildDraw(Canvas c, RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
+            public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
 
                 Bitmap icon;
                 if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
@@ -264,10 +294,10 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
                         RectF icon_dest = new RectF((float) itemView.getLeft() + width, (float) itemView.getTop() + width, (float) itemView.getLeft() + 2 * width, (float) itemView.getBottom() - width);
                         c.drawBitmap(icon, null, icon_dest, p);
                     } else {
-                        p.setColor(Color.parseColor("#FA315B"));
+                        p.setColor(Color.parseColor("#EB9500"));
                         RectF background = new RectF((float) itemView.getRight() + dX, (float) itemView.getTop(), (float) itemView.getRight(), (float) itemView.getBottom());
                         c.drawRect(background, p);
-                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.delete_white);
+                        icon = BitmapFactory.decodeResource(getResources(), R.drawable.envelope);
                         RectF icon_dest = new RectF((float) itemView.getRight() - 2 * width, (float) itemView.getTop() + width, (float) itemView.getRight() - width, (float) itemView.getBottom() - width);
                         c.drawBitmap(icon, null, icon_dest, p);
                     }
@@ -284,6 +314,28 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
             @Override
             public void onClick(int position, String number, String date_time, String call_type) {
                 setBottomSheetData(position, number, date_time, call_type);
+            }
+
+            @Override
+            public void onSelect(boolean isChecked, int position) {
+                if (dummylist == null) {
+                    dummylist = new ArrayList<>();
+                    ivBack.setVisibility(View.VISIBLE);
+                    ivDelete.setVisibility(View.VISIBLE);
+                    tvCount.setVisibility(View.VISIBLE);
+                    longclicked = true;
+                    onSheetClose();
+                }
+
+                if (isChecked) {
+                    dummylist.add(position + "");
+                } else {
+                    dummylist.remove(position + "");
+                }
+                tvCount.setText(dummylist.size() + "");
+                if (dummylist.size() == 0) {
+                    updateViews();
+                }
             }
         });
     }
@@ -302,6 +354,16 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
         rlBottomsheet.setVisibility(View.VISIBLE);
         bottomSheetBehavior.setState(3);
         mediaPlayerState(true);
+        if (bottomSheetBehavior.getPeekHeight() == 107) {
+            sheetHeader.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    sheetHeader.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
+                    bottomSheetBehavior.setPeekHeight(sheetHeader.getHeight());
+                }
+            });
+        }
     }
 
     private void getRecordedFiles() {
@@ -343,22 +405,21 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        int permission = 1;
+        int permission = 1; //PERMISSION_GRANTED
         for (int status : grantResults) {
-            if (status == -1) {
-                permission = 0;
+            if (status == PackageManager.PERMISSION_DENIED) {
+                permission = 0;//PERMISSION_DENIED
             }
         }
-        Utils.setPreferences(this, "permission", String.valueOf(permission));
 
         if (permission == 1) {
             refreshRecyclerView();
         } else {
-            showToast(this, "Permission are required");
+            displayNeverAskAgainDialog(activity);
         }
     }
 
-    @OnClick({R.id.btnPlay, R.id.btnPlayTop, R.id.btnShare, R.id.btnDelete, R.id.btn_allowPermission, R.id.bt_close})
+    @OnClick({R.id.btnPlay, R.id.btnPlayTop, R.id.btnShare, R.id.btnDelete, R.id.btn_allowPermission, R.id.bt_close, R.id.sheet_header, R.id.iv_back, R.id.iv_delete})
     public void onViewClicked(View view) {
         switch (view.getId()) {
             case R.id.btnShare:
@@ -379,11 +440,36 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
             case R.id.bt_close:
                 onSheetClose();
                 break;
+            case R.id.sheet_header:
+                if (bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_COLLAPSED)
+                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                break;
+            case R.id.iv_back:
+                onBackPressed();
+                break;
+            case R.id.iv_delete:
+                showDeleteDialog();
+                break;
         }
     }
 
+    private void deleteFiles() {
+        Collections.sort(dummylist, Collections.<String>reverseOrder());
+        for (String str : dummylist) {
+            int index = Integer.parseInt(str);
+            try {
+                isFileDeleted(audiolist.get(index).getPath());
+                audiolist.remove(index);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        onBackPressed();
+    }
+
     private void onSheetClose() {
-        stopMP();
+        setViewOnFinish();
+
         bottomSheetBehavior.setState(4);
         rlBottomsheet.setVisibility(View.GONE);
     }
@@ -413,11 +499,18 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
             songCurrentDurationLabel.setText(getString(R.string.zero));
             mediaPlayer.reset();
             mediaPlayer.setDataSource(path);
-            mediaPlayer.prepare();
-            mediaPlayer.start();
-            addSeekHandler();
-            totalDuration = mediaPlayer.getDuration();
-            songTotalDurationLabel.setText("" + utils.milliSecondsToTimer(totalDuration));
+            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                @Override
+                public void onPrepared(MediaPlayer mp) {
+                    mp.start();
+                    addSeekHandler();
+                    totalDuration = mediaPlayer.getDuration();
+                    songTotalDurationLabel.setText("" + utils.milliSecondsToTimer(totalDuration));
+                }
+            });
+            mediaPlayer.prepareAsync();
+//            mediaPlayer.prepare();
+//            mediaPlayer.start();
         } catch (Exception e) {
             showToast(activity, "Something went Wrong");
             e.printStackTrace();
@@ -447,7 +540,6 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
         super.onRestart();
         if (notifyOnResume) {
             refreshRecyclerView();
-            Log.e("onRestart", "refreshRecyclerView");
         }
     }
 
@@ -499,24 +591,22 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
     protected void onDestroy() {
         super.onDestroy();
         if (mediaPlayer != null) {
-            stopMP();
+            setViewOnFinish();
             mediaPlayer.release();
         }
-
     }
 
-    private void stopMP() {
-        if (mediaPlayer.isPlaying()) {
-            setViewOnFinish();
-        }
-    }
 
     private void setViewOnFinish() {
-        mediaPlayer.stop();
-        seekBar.setProgress(100);
-        songCurrentDurationLabel.setText(songTotalDurationLabel.getText().toString());
+        if (mediaPlayer.isPlaying()) {
+            mediaPlayer.stop();
+            seekBar.setProgress(100);
+            songCurrentDurationLabel.setText(songTotalDurationLabel.getText().toString());
+        }
         setPlayDrawable();
-        removeSeekHandler();
+
+        if (mUpdateTimeTask != null)
+            removeSeekHandler();
     }
 
     private void shareFile() {
@@ -532,10 +622,11 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
             public void onClick(DialogInterface dialog, int which) {
                 switch (which) {
                     case DialogInterface.BUTTON_POSITIVE:
-                        if (deleteFileProject(path)) {
-                            onDeleteItem();
+                        if (longclicked) {
+                            deleteFiles();
                         } else {
-                            showToast(activity, "Something went Wrong");
+                            isFileDeleted(path);
+                            onDeleteItem();
                         }
                         break;
                     case DialogInterface.BUTTON_NEGATIVE:
@@ -559,7 +650,6 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
 
     @Override
     public void onCompletion(MediaPlayer mp) {
-        mp.stop();
         setViewOnFinish();
     }
 
@@ -569,6 +659,43 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
 
     private void addSeekHandler() {
         mHandler.postDelayed(mUpdateTimeTask, 1000);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (bottomSheetBehavior != null && bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        } else if (longclicked) {
+            updateViews();
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private void updateViews() {
+        dummylist = null;
+        ivBack.setVisibility(View.GONE);
+        tvCount.setVisibility(View.GONE);
+        ivDelete.setVisibility(View.GONE);
+        longclicked = false;
+        recordAdapter.cancelLongClick();
+    }
+
+    private String getDateTime() {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        Date date = new Date();
+        return dateFormat.format(date);
+    }
+
+    @Override
+    public void onRefresh() {
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                refreshRecyclerView();
+                swipeToRefresh.setRefreshing(false);
+            }
+        }, 2000);
     }
 }
 

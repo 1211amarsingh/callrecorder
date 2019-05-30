@@ -4,17 +4,15 @@ package com.kv.callrecorder;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.media.MediaMetadataRetriever;
-import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatCheckBox;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -31,6 +29,7 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
     private static ClickListener clickListener;
     private AppCompatActivity context;
     private ArrayList<AudioModel> audiofiles;
+    private boolean longclicked;
 
     RecordListAdapter(AppCompatActivity context, ArrayList<AudioModel> audiofiles) {
         this.context = context;
@@ -62,36 +61,67 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
             viewHolder.img_call_status.setBackground(context.getResources().getDrawable(R.drawable.call_in));
         }
 
-        viewHolder.viewForeground.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String duration = viewHolder.tv_duration.getText().toString();
-
-                if (!duration.equals("0 sec")) {
-                    int position = viewHolder.getAdapterPosition();
-                    clickListener.onClick(position, number, date_time, call_type);
-                } else {
-                    showToast(context, "Couldn't play the track you requested");
-                }
-            }
-        });
-
         viewHolder.tv_number.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
                 ClipboardManager cm = (ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
                 cm.setPrimaryClip(ClipData.newPlainText("number", number));
                 showToast(context, "Copied to clipboard");
-                return false;
+                return true;
             }
         });
+
+        if (longclicked) {
+            viewHolder.checkBox.setVisibility(View.VISIBLE);
+        } else {
+            viewHolder.checkBox.setChecked(false);
+            viewHolder.checkBox.setVisibility(View.GONE);
+        }
+
+        viewHolder.viewForeground.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String duration = viewHolder.tv_duration.getText().toString();
+                if (longclicked) {
+                    checkBoxStageChange(viewHolder);
+                } else {
+                    if (!duration.equals("0 sec")) {
+                        int position = viewHolder.getAdapterPosition();
+                        clickListener.onClick(position, number, date_time, call_type);
+                    } else {
+                        showToast(context, "Couldn't play the track you requested");
+                    }
+                }
+
+            }
+        });
+
+        viewHolder.viewForeground.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                if (longclicked) {
+                    checkBoxStageChange(viewHolder);
+                } else {
+                    longclicked = true;
+                    checkBoxStageChange(viewHolder);
+                    notifyDataSetChanged();
+                }
+                return true;
+            }
+        });
+
+    }
+
+    private void checkBoxStageChange(ViewHolder viewHolder) {
+        boolean isChecked = !viewHolder.checkBox.isChecked();
+        viewHolder.checkBox.setChecked(isChecked);
+        clickListener.onSelect(isChecked, viewHolder.getAdapterPosition());
     }
 
     @Override
     public int getItemCount() {
         return audiofiles.size();
     }
-
 
     @Override
     public int getItemViewType(int position) {
@@ -109,6 +139,8 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
         ImageView img_call_status;
         @BindView(R.id.view_foreground)
         CardView viewForeground;
+        @BindView(R.id.checkbox)
+        AppCompatCheckBox checkBox;
 
         ViewHolder(View view) {
             super(view);
@@ -123,11 +155,10 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
     void removeItem(int positon) {
         audiofiles.remove(positon);
         notifyItemRemoved(positon);
-
     }
 
-    void restoreItem(int position, AudioModel audioModel) {
-        audiofiles.add(position, audioModel);
-        notifyItemInserted(position);
+    void cancelLongClick() {
+        longclicked = false;
+        notifyDataSetChanged();
     }
 }

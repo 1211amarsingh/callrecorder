@@ -161,27 +161,6 @@ public class Utils {
         return true;
     }
 
-//    private void showGPSDisabledAlertToUser() {
-//        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
-//        alertDialogBuilder.setMessage("GPS is disabled in your device. Would you like to enable it?")
-//                .setCancelable(false)
-//                .setPositiveButton("Goto Settings Page To Enable GPS",
-//                        new DialogInterface.OnClickListener() {
-//                            public void onClick(DialogInterface dialog, int id) {
-//
-//                                startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
-//                            }
-//                        });
-//        alertDialogBuilder.setNegativeButton("Cancel",
-//                new DialogInterface.OnClickListener() {
-//                    public void onClick(DialogInterface dialog, int id) {
-//                        dialog.cancel();
-//                    }
-//                });
-//        AlertDialog alert = alertDialogBuilder.create();
-//        alert.show();
-//    }
-
     /**
      * creating new image file here
      *
@@ -221,7 +200,7 @@ public class Utils {
         imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
     }
 
-    public static boolean deleteFileProject(String filepath) {
+    public static boolean isFileDeleted(String filepath) {
         File file = new File(filepath);
         return file.exists() && file.delete();
     }

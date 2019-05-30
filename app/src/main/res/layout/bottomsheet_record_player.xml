@@ -11,7 +11,7 @@
     app:layout_behavior="@string/bottom_sheet_behavior">
 
     <RelativeLayout
-        android:id="@+id/player_header_bg"
+        android:id="@+id/sheet_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/colorPrimaryDark"
@@ -78,11 +78,10 @@
         android:id="@+id/lbVisualizer"
         android:layout_width="match_parent"
         android:layout_height="220dp"
-        android:layout_below="@id/player_header_bg"
+        android:layout_below="@id/sheet_header"
         android:background="#FFFFFF" />
 
     <LinearLayout
-        android:id="@+id/player_footer_bg"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/lbVisualizer"
@@ -105,7 +104,6 @@
             android:padding="5dp" />
 
         <LinearLayout
-            android:id="@+id/timerDisplay"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_marginLeft="20dp"
