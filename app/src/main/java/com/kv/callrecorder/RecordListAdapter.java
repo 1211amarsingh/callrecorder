@@ -4,6 +4,7 @@ package com.kv.callrecorder;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatCheckBox;
@@ -30,21 +31,23 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
     private AppCompatActivity context;
     private ArrayList<AudioModel> audiofiles;
     private boolean longclicked;
+    private LayoutInflater inflater;
 
     RecordListAdapter(AppCompatActivity context, ArrayList<AudioModel> audiofiles) {
         this.context = context;
         this.audiofiles = audiofiles;
+        this.inflater = LayoutInflater.from(context);
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup container, int i) {
-        View view = LayoutInflater.from(context).inflate(R.layout.recyclerview_item, container, false);
+        View view = inflater.inflate(R.layout.recyclerview_item, container, false);
         return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull final ViewHolder viewHolder, int i) {
+    public void onBindViewHolder(@NonNull final ViewHolder viewHolder, final int i) {
 
         String file_name = audiofiles.get(i).getName();
         final String number = file_name.substring(file_name.indexOf("_", 7) + 1, file_name.lastIndexOf("_"));
@@ -59,6 +62,8 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
 
         if (call_type.equals("IN")) {
             viewHolder.img_call_status.setBackground(context.getResources().getDrawable(R.drawable.call_in));
+        }else {
+            viewHolder.img_call_status.setBackground(context.getResources().getDrawable(R.drawable.calls_out));
         }
 
         viewHolder.tv_number.setOnLongClickListener(new View.OnLongClickListener() {
@@ -109,7 +114,6 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
                 return true;
             }
         });
-
     }
 
     private void checkBoxStageChange(ViewHolder viewHolder) {
@@ -123,10 +127,10 @@ public class RecordListAdapter extends RecyclerView.Adapter<RecordListAdapter.Vi
         return audiofiles.size();
     }
 
-    @Override
-    public int getItemViewType(int position) {
-        return position;
-    }
+//    @Override
+//    public int getItemViewType(int position) {
+//        return position;
+//    }
 
     class ViewHolder extends RecyclerView.ViewHolder {
         @BindView(R.id.tv_number)

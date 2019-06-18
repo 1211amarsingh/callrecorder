@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
+import android.telephony.TelephonyManager;
 import android.view.Surface;
 
 import java.io.File;
@@ -37,7 +38,7 @@ public class MediaRecorderService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
-            number = intent.getStringExtra("incoming_number");
+            number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
             incoming_flag = intent.getBooleanExtra("incoming_flag", false);
 
             startRecording();
@@ -130,6 +131,9 @@ public class MediaRecorderService extends Service {
             state = "IN_";
         }
         String time = new SimpleDateFormat("hhmmss").format(new Date());
+        if (number == null){
+            number = "Unknown";
+        }
         return (file.getAbsolutePath() + "/CALL_" + state + number + "_" + time + ".amr");
     }
 

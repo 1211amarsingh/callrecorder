@@ -12,6 +12,10 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
@@ -30,6 +34,7 @@ import android.support.v7.widget.helper.ItemTouchHelper;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.Button;
@@ -44,8 +49,6 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.InterstitialAd;
 import com.google.android.gms.ads.MobileAds;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
 import com.kv.callrecorder.Utility.Utilities;
 import com.kv.callrecorder.Utility.visualizer.LineBarVisualizer;
 
@@ -68,7 +71,7 @@ import static com.kv.callrecorder.Utility.PermissionHandling.displayNeverAskAgai
 import static com.kv.callrecorder.Utility.Utils.isFileDeleted;
 import static com.kv.callrecorder.Utility.Utils.showToast;
 
-public class RecordListActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener, MediaPlayer.OnCompletionListener, SwipeRefreshLayout.OnRefreshListener {
+public class RecordListActivity extends AppCompatActivity implements SeekBar.OnSeekBarChangeListener, MediaPlayer.OnCompletionListener, SwipeRefreshLayout.OnRefreshListener, SensorEventListener {
 
     @BindView(R.id.recycler_view)
     RecyclerView recyclerView;
@@ -108,6 +111,14 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
     RelativeLayout sheetHeader;
     @BindView(R.id.swipeToRefresh)
     SwipeRefreshLayout swipeToRefresh;
+    @BindView(R.id.adView)
+    AdView adView;
+    @BindView(R.id.bt_close)
+    AppCompatImageButton btClose;
+    @BindView(R.id.btnShare)
+    ImageButton btnShare;
+    @BindView(R.id.btnDelete)
+    ImageButton btnDelete;
 
     private RecordListAdapter recordAdapter;
     SimpleDateFormat firstformat = new SimpleDateFormat("yyyy-MM-dd");
@@ -126,6 +137,9 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
     private boolean longclicked;
     private Handler handler = new Handler();
 
+    SensorManager mySensorManager;
+    Sensor sensor;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -140,6 +154,39 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
         activity = this;
         newInstall();
         refreshRecyclerView();
+
+        setProximitySensor();
+    }
+
+    private void setProximitySensor() {
+        mySensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        sensor = mySensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+
+        if (sensor == null) {
+            Log.e("Call Record", "No Proximity Sensor!");
+        } else {
+            Log.e("Call Record", "Proximity Sensor!");
+            mySensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+        }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+            if (event.values[0] == 0) {
+                //Near
+                if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+                    pauseMP();
+                }
+            } else {
+                //Away
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
     }
 
     private void newInstall() {
@@ -148,17 +195,15 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
                 return;
             }
 
-            DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference().child("users");
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
                 List<SubscriptionInfo> subscription = SubscriptionManager.from(getApplicationContext()).getActiveSubscriptionInfoList();
                 for (SubscriptionInfo sbInfo : subscription) {
-                    databaseReference.child(sbInfo.getNumber()).setValue(getDateTime());
+                    sbInfo.getNumber();
                 }
             } else {
                 TelephonyManager tMgr = (TelephonyManager) activity.getSystemService(Context.TELEPHONY_SERVICE);
                 String mPhoneNumber = tMgr.getLine1Number();
-                databaseReference.child(mPhoneNumber).setValue(getDateTime());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -214,8 +259,7 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
 
     private void viewAdsBanner() {
         MobileAds.initialize(this, this.getResources().getString(R.string.app_id));
-        AdView mAdView = findViewById(R.id.adView);
-        mAdView.loadAd(new AdRequest.Builder().build());
+        adView.loadAd(new AdRequest.Builder().build());
     }
 
     private void refreshRecyclerView() {
