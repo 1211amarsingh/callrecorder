@@ -139,6 +139,8 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
 
     SensorManager mySensorManager;
     Sensor sensor;
+    private InterstitialAd mInterstitialAd;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -246,20 +248,24 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
         lbVisualizer.setPlayer(mediaPlayer.getAudioSessionId());
     }
 
-    private void viewAdsInterstitial() {
-        InterstitialAd mInterstitialAd = new InterstitialAd(this);
-        mInterstitialAd.setAdUnitId("ca-app-pub-3940256099942544/1033173712");
-        mInterstitialAd.loadAd(new AdRequest.Builder().build());
-        //        if (mInterstitialAd.isLoaded()) {
-//            mInterstitialAd.show();
-//        } else {
-//            Log.d("TAG", "The interstitial wasn't loaded yet.");
-//        }
-    }
-
     private void viewAdsBanner() {
         MobileAds.initialize(this, this.getResources().getString(R.string.app_id));
         adView.loadAd(new AdRequest.Builder().build());
+        viewAdsInterstitial();
+    }
+
+    private void viewAdsInterstitial() {
+        if (mInterstitialAd == null) {
+            mInterstitialAd = new InterstitialAd(this);
+            mInterstitialAd.setAdUnitId(this.getResources().getString(R.string.interstitial_1));
+            mInterstitialAd.loadAd(new AdRequest.Builder().build());
+        }
+
+        if (mInterstitialAd.isLoaded()) {
+            mInterstitialAd.show();
+        } else {
+            Log.d("TAG", "The interstitial wasn't loaded yet.");
+        }
     }
 
     private void refreshRecyclerView() {
@@ -316,7 +322,10 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
                         startActivity(sms_intent);
                     }
                 } else {
-                    startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + tv_number.getText().toString())));
+//                    startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + tv_number.getText().toString())));
+                    if (checkRequiredPermissions(activity)) {
+                        startActivity(new Intent(Intent.ACTION_CALL).setData(Uri.parse("tel:" + tv_number.getText().toString())));
+                    }
                 }
             }
 
@@ -463,9 +472,14 @@ public class RecordListActivity extends AppCompatActivity implements SeekBar.OnS
         }
     }
 
-    @OnClick({R.id.btnPlay, R.id.btnPlayTop, R.id.btnShare, R.id.btnDelete, R.id.btn_allowPermission, R.id.bt_close, R.id.sheet_header, R.id.iv_back, R.id.iv_delete})
+    @OnClick({R.id.iv_dialer, R.id.btnPlay, R.id.btnPlayTop, R.id.btnShare, R.id.btnDelete, R.id.btn_allowPermission, R.id.bt_close, R.id.sheet_header, R.id.iv_back, R.id.iv_delete})
     public void onViewClicked(View view) {
+        viewAdsInterstitial();
+
         switch (view.getId()) {
+            case R.id.iv_dialer:
+                startActivity(new Intent(activity, DailerActivity.class));
+                break;
             case R.id.btnShare:
                 shareFile();
                 break;

@@ -21,8 +21,8 @@ android {
         applicationId "com.kv.callrecorder"
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode 3
-        versionName "2.1.0"
+        versionCode 4
+        versionName "2.1.1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -52,4 +52,3 @@ dependencies {
 
     implementation 'com.google.android.gms:play-services-ads:17.2.1'
 }
-
